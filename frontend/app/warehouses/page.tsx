@@ -62,9 +62,7 @@ export default function WarehousesPage() {
     }
   };
 
-  if (loading) {
-    return <div style={{ padding: "2rem", textAlign: "center" }}>Chargement...</div>;
-  }
+  if (loading) return <div style={{ padding: "2rem", textAlign: "center" }}>Chargement...</div>;
 
   return (
     <main style={{ padding: "2rem" }}>

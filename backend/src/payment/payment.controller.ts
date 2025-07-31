@@ -27,6 +27,14 @@ export class PaymentController {
     return this.paymentService.getDroitEntreeStatus(req.user);
   }
 
+  @Get('droit-entree/debug')
+  async debugDroitEntreeStatus(@Req() req: any) {
+    console.log('🔍 Debug - Utilisateur:', req.user?.id, req.user?.email);
+    const status = await this.paymentService.getDroitEntreeStatus(req.user);
+    console.log('🔍 Debug - Statut retourné:', status);
+    return status;
+  }
+
   @Get('droit-entree/check')
   checkDroitEntreePaid(@Req() req: any) {
     return this.paymentService.checkDroitEntreePaid(req.user);

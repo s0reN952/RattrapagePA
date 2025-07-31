@@ -7,7 +7,7 @@ export class Product {
   id: number;
 
   @Column()
-  nom: string; // "Burger", "Frites", "Boisson", etc.
+  nom: string;
 
   @Column('decimal', { precision: 10, scale: 2 })
   prix: number;
