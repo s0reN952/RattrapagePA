@@ -3,11 +3,18 @@ import Stripe from 'stripe';
 
 @Injectable()
 export class StripeService {
-  private stripe: Stripe;
+  private stripe: Stripe | null;
 
   constructor() {
-    // Utiliser la clé Stripe fournie
-    const stripeKey = process.env.STRIPE_SECRET_KEY || 'sk_test_51RYn0F2VQ6c0F2Q64FUeP7qLEMCn8iklRhLUd1QsR5o8X0wTF67VsjTSDSyQJHc1GBbg0Gpnc35jbjmbeBYDeKZH00TqvHgdm4';
+    // Utiliser uniquement la variable d'environnement
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    
+    if (!stripeKey) {
+      console.warn('⚠️ STRIPE_SECRET_KEY non définie dans les variables d\'environnement');
+      // En mode développement, on peut continuer sans Stripe
+      this.stripe = null;
+      return;
+    }
     
     console.log('🔑 Initialisation Stripe avec la clé:', stripeKey.substring(0, 20) + '...');
     
@@ -17,6 +24,10 @@ export class StripeService {
   }
 
   async createPaymentIntent(amount: number, currency: string = 'eur') {
+    if (!this.stripe) {
+      throw new Error('Stripe non configuré. Vérifiez STRIPE_SECRET_KEY dans .env');
+    }
+
     try {
       const paymentIntent = await this.stripe.paymentIntents.create({
         amount: amount * 100, // Stripe utilise les centimes
@@ -37,6 +48,16 @@ export class StripeService {
   }
 
   async createCheckoutSession(amount: number, currency: string = 'eur', userId?: number, userEmail?: string) {
+    if (!this.stripe) {
+      // Mode fallback pour le développement
+      console.log('🔄 Mode fallback - Simulation session Stripe');
+      return {
+        id: `cs_test_${Date.now()}`,
+        url: 'http://localhost:3000/paiement-stripe?payment_intent=pi_test&client_secret=pi_test_secret',
+        status: 'open'
+      };
+    }
+
     try {
       console.log('🔧 Création session Stripe:', { amount, currency, userId, userEmail });
       
@@ -82,6 +103,10 @@ export class StripeService {
   }
 
   async confirmPayment(paymentIntentId: string) {
+    if (!this.stripe) {
+      throw new Error('Stripe non configuré. Vérifiez STRIPE_SECRET_KEY dans .env');
+    }
+
     try {
       const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
       
@@ -108,6 +133,10 @@ export class StripeService {
   }
 
   async getPaymentStatus(paymentIntentId: string) {
+    if (!this.stripe) {
+      throw new Error('Stripe non configuré. Vérifiez STRIPE_SECRET_KEY dans .env');
+    }
+
     try {
       const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
       
@@ -123,6 +152,10 @@ export class StripeService {
   }
 
   async getSessionStatus(sessionId: string) {
+    if (!this.stripe) {
+      throw new Error('Stripe non configuré. Vérifiez STRIPE_SECRET_KEY dans .env');
+    }
+
     try {
       const session = await this.stripe.checkout.sessions.retrieve(sessionId);
       
