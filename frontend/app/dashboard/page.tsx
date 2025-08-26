@@ -266,7 +266,6 @@ export default function DashboardPage() {
             <button onClick={() => router.push("/trucks")}>🚛 Mes camions</button>
           )}
           <button onClick={() => router.push("/warehouses")}>🏢 Entrepôts</button>
-          {isPaid && <button onClick={() => router.push("/orders")}>📋 Commandes</button>}
           {isPaid && <button onClick={() => router.push("/sales")}>📊 Ventes</button>}
           <button onClick={() => router.push("/profile")}>👤 Profil</button>
           <button onClick={() => router.push("/login")}>🔓 Se déconnecter</button>

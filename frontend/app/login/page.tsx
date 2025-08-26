@@ -31,10 +31,20 @@ export default function LoginPage() {
       const data = await response.json();
       localStorage.setItem("token", data.access_token);
       
+      // Décoder le JWT pour récupérer le rôle
+      const token = data.access_token;
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const userRole = payload.role;
+      
       // Déclencher un événement pour notifier la navbar
       window.dispatchEvent(new Event('storage'));
       
-      router.push("/dashboard");
+      // Redirection selon le rôle
+      if (userRole === 'super_admin' || userRole === 'admin') {
+        router.push("/admin"); // Interface admin
+      } else {
+        router.push("/dashboard"); // Interface franchisé
+      }
     } catch (err) {
       setError("Erreur de connexion au serveur");
     } finally {

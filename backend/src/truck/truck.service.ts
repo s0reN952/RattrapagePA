@@ -15,6 +15,13 @@ export class TruckService {
     return this.truckRepository.find({ where: { user: { id: user.id } } });
   }
 
+  async findOne(id: number) {
+    return this.truckRepository.findOne({ 
+      where: { id },
+      relations: ['user']
+    });
+  }
+
   async create(truck: Partial<Truck>, user: User) {
     const result = await this.truckRepository.insert({
       ...truck,

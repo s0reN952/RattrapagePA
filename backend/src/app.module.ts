@@ -11,6 +11,7 @@ import { WarehouseModule } from './warehouse/warehouse.module';
 import { SalesModule } from './sales/sales.module';
 import { ProductModule } from './product/product.module';
 import { PaymentModule } from './payment/payment.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { PaymentModule } from './payment/payment.module';
     SalesModule,
     ProductModule,
     PaymentModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -79,7 +79,7 @@ export class PaymentService {
         user: { id: user.id },
         stripe_payment_intent_id: session.id,
         stripe_client_secret: session.id, // Stocker l'ID de session au lieu de l'URL
-        stripe_status: session.status || 'open'
+        stripe_status: 'open'
       });
 
       console.log('✅ Paiement enregistré en base, ID:', result.identifiers[0].id);

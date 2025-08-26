@@ -27,6 +27,12 @@ export class Sales {
   @Column('decimal', { precision: 10, scale: 2 })
   panier_moyen: number;
 
+  @Column('decimal', { precision: 10, scale: 2 })
+  montant: number;
+
+  @Column({ type: 'timestamp' })
+  date: Date;
+
   @Column('text', { nullable: true })
   commentaires: string;
 

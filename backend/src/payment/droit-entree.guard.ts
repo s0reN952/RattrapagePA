@@ -13,7 +13,12 @@ export class DroitEntreeGuard implements CanActivate {
       throw new ForbiddenException('Utilisateur non authentifié');
     }
 
-    // Vérifier si le droit d'entrée est payé
+    // Les admins et super admins peuvent accéder sans payer le droit d'entrée
+    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+      return true;
+    }
+
+    // Vérifier si le droit d'entrée est payé pour les autres utilisateurs
     const droitEntreeStatus = await this.paymentService.getDroitEntreeStatus(user);
     
     if (!droitEntreeStatus.paid) {

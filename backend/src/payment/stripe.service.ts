@@ -47,19 +47,35 @@ export class StripeService {
     }
   }
 
-  async createCheckoutSession(amount: number, currency: string = 'eur', userId?: number, userEmail?: string) {
-    if (!this.stripe) {
-      // Mode fallback pour le développement
-      console.log('🔄 Mode fallback - Simulation session Stripe');
-      return {
-        id: `cs_test_${Date.now()}`,
-        url: 'http://localhost:3000/paiement-stripe?payment_intent=pi_test&client_secret=pi_test_secret',
-        status: 'open'
-      };
-    }
-
+  async createCheckoutSession(
+    amount: number,
+    currency: string,
+    userId: number,
+    userEmail: string,
+    type: 'droit_entree' | 'stock_order' = 'droit_entree',
+    metadata?: any
+  ): Promise<{ id: string; url: string }> {
     try {
-      console.log('🔧 Création session Stripe:', { amount, currency, userId, userEmail });
+      let productName: string;
+      let productDescription: string;
+      let successUrl: string;
+      let cancelUrl: string;
+
+      if (type === 'stock_order') {
+        productName = 'Achat de stock Driv\'n Cook';
+        productDescription = 'Stock d\'ingrédients, plats préparés et boissons';
+        successUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/warehouses/payment-success?session_id={CHECKOUT_SESSION_ID}`;
+        cancelUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/warehouses/stock-management`;
+      } else {
+        productName = 'Droit d\'entrée Driv\'n Cook';
+        productDescription = 'Frais d\'entrée pour devenir franchisé Driv\'n Cook';
+        successUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/paiement-succes?session_id={CHECKOUT_SESSION_ID}`;
+        cancelUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/droit-entree`;
+      }
+
+      if (!this.stripe) {
+        throw new Error('Stripe non configuré. Vérifiez STRIPE_SECRET_KEY dans .env');
+      }
       
       const session = await this.stripe.checkout.sessions.create({
         payment_method_types: ['card'],
@@ -68,37 +84,26 @@ export class StripeService {
             price_data: {
               currency: currency,
               product_data: {
-                name: 'Droit d\'entrée Driv\'n Cook',
-                description: 'Droit d\'entrée pour devenir franchisé Driv\'n Cook',
+                name: productName,
+                description: productDescription,
               },
-              unit_amount: amount * 100, // Stripe utilise les centimes
+              unit_amount: Math.round(amount), // Le montant est déjà en centimes
             },
             quantity: 1,
           },
         ],
         mode: 'payment',
-        success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/paiement-succes?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/droit-entree`,
-        customer_email: userEmail, // Pré-remplir l'email
-        metadata: {
-          type: 'droit_entree',
-          user_id: userId ? userId.toString() : 'unknown',
-          description: 'Droit d\'entrée Driv\'n Cook'
-        }
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        customer_email: userEmail,
+        metadata: metadata || {}, // Ajouter les métadonnées
       });
-      
-      console.log('✅ Session Stripe créée:', session.id);
-      return session;
+
+      console.log(`✅ Session de paiement créée: ${session.id || 'N/A'} pour ${amount}${currency}`);
+      return { id: session.id || '', url: session.url || '' };
     } catch (error) {
-      console.error('❌ Erreur création session Stripe:', error);
-      
-      // Fallback : simuler une session Stripe pour le développement
-      console.log('🔄 Utilisation du mode fallback (simulation)');
-      return {
-        id: `cs_test_${Date.now()}`,
-        url: 'http://localhost:3000/paiement-stripe?payment_intent=pi_test&client_secret=pi_test_secret',
-        status: 'open'
-      };
+      console.error('❌ Erreur lors de la création de la session de paiement:', error);
+      throw error;
     }
   }
 
@@ -168,6 +173,65 @@ export class StripeService {
       };
     } catch (error) {
       throw new Error(`Erreur lors de la récupération du statut de session: ${error.message}`);
+    }
+  }
+
+  // Traiter un webhook Stripe
+  async handleWebhook(event: any): Promise<{ success: boolean; message: string }> {
+    try {
+      switch (event.type) {
+        case 'checkout.session.completed':
+          const session = event.data.object;
+          
+          // Vérifier que c'est une commande de stock (pas un droit d'entrée)
+          if (session.metadata?.type === 'stock_order') {
+            console.log(`🛒 Webhook: Session de paiement complétée pour commande de stock - Session ID: ${session.id}`);
+            
+                         // Récupérer les données de la commande depuis les métadonnées simplifiées
+             const simplifiedItems = JSON.parse(session.metadata.orderItems || '[]');
+             const orderData = {
+               items: simplifiedItems, // Déjà simplifiés
+               total: session.amount_total / 100, // Stripe utilise les centimes
+               userId: parseInt(session.metadata.userId || '0'),
+               compliance: JSON.parse(session.metadata.compliance || '{}')
+             };
+            
+            // Appeler le service warehouse pour mettre à jour le stock
+            // Note: On injectera le WarehouseService via le constructeur
+            console.log(`📦 Webhook: Données de commande récupérées:`, orderData);
+            
+            return {
+              success: true,
+              message: `Webhook traité avec succès pour la commande de stock - Session: ${session.id}`
+            };
+          } else {
+            console.log(`💰 Webhook: Session de paiement complétée pour droit d'entrée - Session ID: ${session.id}`);
+            return {
+              success: true,
+              message: `Webhook traité avec succès pour le droit d'entrée - Session: ${session.id}`
+            };
+          }
+          
+        case 'payment_intent.succeeded':
+          console.log(`✅ Webhook: Paiement réussi - Payment Intent: ${event.data.object.id}`);
+          return {
+            success: true,
+            message: `Webhook traité avec succès pour le paiement - Intent: ${event.data.object.id}`
+          };
+          
+        default:
+          console.log(`ℹ️ Webhook: Événement non géré - Type: ${event.type}`);
+          return {
+            success: true,
+            message: `Webhook reçu mais non traité - Type: ${event.type}`
+          };
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors du traitement du webhook:', error);
+      return {
+        success: false,
+        message: `Erreur lors du traitement du webhook: ${error.message}`
+      };
     }
   }
 } 
