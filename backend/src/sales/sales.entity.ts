@@ -27,10 +27,10 @@ export class Sales {
   @Column('decimal', { precision: 10, scale: 2 })
   panier_moyen: number;
 
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column('decimal', { precision: 10, scale: 2, nullable: true, default: 0 })
   montant: number;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamp', nullable: true, default: () => 'CURRENT_TIMESTAMP' })
   date: Date;
 
   @Column('text', { nullable: true })

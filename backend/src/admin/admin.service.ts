@@ -8,6 +8,8 @@ import { Sales } from '../sales/sales.entity';
 import { Payment } from '../payment/payment.entity';
 import { Warehouse } from '../warehouse/warehouse.entity';
 import { Product } from '../product/product.entity';
+import { FranchiseStock } from '../product/franchise-stock.entity';
+import { ComplianceRecord } from './compliance-record.entity';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -28,6 +30,10 @@ export class AdminService {
     private warehouseRepository: Repository<Warehouse>,
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
+    @InjectRepository(ComplianceRecord)
+    private complianceRepository: Repository<ComplianceRecord>,
+    @InjectRepository(FranchiseStock)
+    private franchiseStockRepository: Repository<FranchiseStock>,
   ) {}
 
   // 🚛 Gestion des camions
@@ -296,6 +302,21 @@ export class AdminService {
     });
   }
 
+  async getAllFranchisesWithMetrics(): Promise<any[]> {
+    const franchises = await this.userRepository.find({
+      where: { role: UserRole.FRANCHISE },
+      relations: ['trucks', 'payments', 'sales', 'orders']
+    });
+
+    const franchisesWithMetrics: any[] = [];
+    for (const franchise of franchises) {
+      const metrics = await this.calculateFranchiseMetrics(franchise);
+      franchisesWithMetrics.push(metrics);
+    }
+
+    return franchisesWithMetrics;
+  }
+
   async getFranchiseById(franchiseId: number): Promise<any> {
     const franchise = await this.userRepository.findOne({
       where: { id: franchiseId, role: UserRole.FRANCHISE },
@@ -407,7 +428,7 @@ export class AdminService {
 
     if (!franchise) throw new NotFoundException('Franchisé non trouvé');
 
-    const metrics = this.calculateFranchiseMetrics(franchise);
+    const metrics = await this.calculateFranchiseMetrics(franchise);
     
     return {
       ...metrics,
@@ -445,21 +466,60 @@ export class AdminService {
       relations: ['payments', 'sales', 'trucks']
     });
 
-    return franchises.map(franchise => this.calculateFranchiseMetrics(franchise));
+    const franchisesWithMetrics: any[] = [];
+    for (const franchise of franchises) {
+      const metrics = await this.calculateFranchiseMetrics(franchise);
+      franchisesWithMetrics.push(metrics);
+    }
+
+    return franchisesWithMetrics;
   }
 
   // Méthode helper pour calculer les métriques d'un franchisé
-  private calculateFranchiseMetrics(franchise: User): any {
-    const totalSales = franchise.sales.reduce((sum, sale) => sum + sale.montant, 0);
+  private async calculateFranchiseMetrics(franchise: User): Promise<any> {
+    // Récupérer les ventes du mois en cours
+    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
+    const startDate = new Date(currentYear, currentMonth - 1, 1);
+    const endDate = new Date(currentYear, currentMonth, 0);
+    
+    const monthlySales = franchise.sales.filter(sale => {
+      const saleDate = new Date(sale.date);
+      return saleDate >= startDate && saleDate <= endDate;
+    });
+    
+    const totalSales = monthlySales.reduce((sum, sale) => sum + Number(sale.chiffre_affaires), 0);
     const commission = totalSales * 0.04;
-    const mandatoryPurchases = totalSales * 0.8;
+    
+    // Récupérer le stock actuel pour calculer la conformité 80/20
+    const franchiseStock = await this.franchiseStockRepository.find({
+      where: {
+        user: { id: franchise.id },
+        isActive: true
+      },
+      relations: ['product']
+    });
+    
+    // Calculer la valeur totale du stock (conformité 80/20)
+    const totalStockValue = franchiseStock.reduce((total, stock) => {
+      const valeurStock = Number(stock.quantite) * Number(stock.product?.prix || 0);
+      return total + valeurStock;
+    }, 0);
+    
+    // Calculer la conformité 80/20 : 80% du CA doit être acheté chez Driv'n Cook
+    const pourcentageConformite = totalSales > 0 ? (totalStockValue / totalSales) * 100 : 0;
+    const estConforme80_20 = pourcentageConformite >= 80;
 
     // Filtrer et nettoyer les paiements
-    const validPayments = franchise.payments.filter(p => p.user && p.user.id === franchise.id);
+    const validPayments = franchise.payments || [];
+    
+    // Debug: Afficher les paiements pour diagnostiquer
+    console.log(`🔍 Paiements pour ${franchise.prenom} ${franchise.nom}:`, validPayments);
     
     // Fonction helper pour vérifier la conformité d'un type de paiement
     const checkPaymentCompliance = (type: string): boolean => {
       const paymentsOfType = validPayments.filter(p => p.type === type);
+      console.log(`💰 Paiements de type ${type}:`, paymentsOfType);
       if (paymentsOfType.length === 0) return false;
       
       // Prendre le paiement le plus récent de ce type
@@ -467,7 +527,9 @@ export class AdminService {
         current.date_creation > latest.date_creation ? current : latest
       );
       
-      return latestPayment.statut === 'paye';
+      const isCompliant = latestPayment.statut === 'paye';
+      console.log(`✅ Conformité ${type}: ${isCompliant} (statut: ${latestPayment.statut})`);
+      return isCompliant;
     };
 
     return {
@@ -480,12 +542,15 @@ export class AdminService {
       notes: franchise.notes,
       totalSales,
       commission,
-      mandatoryPurchases,
+      mandatoryPurchases: totalSales * 0.8,
       trucksCount: franchise.trucks.filter(t => t.isAssigned).length,
       compliance: {
         entryFee: checkPaymentCompliance('droit_entree'),
         commissionPaid: checkPaymentCompliance('commission'),
-        mandatoryPurchases: checkPaymentCompliance('achat_obligatoire')
+        mandatoryPurchases: estConforme80_20, // ✅ Conformité 80/20 basée sur le calcul
+        compliance80_20: estConforme80_20,
+        pourcentageConformite: pourcentageConformite.toFixed(1),
+        totalStockValue
       },
       status: this.getFranchiseStatus(franchise)
     };
@@ -496,7 +561,7 @@ export class AdminService {
     if (!franchise.isActive) return 'Inactif';
     
     // Filtrer et nettoyer les paiements
-    const validPayments = franchise.payments.filter(p => p.user && p.user.id === franchise.id);
+    const validPayments = franchise.payments || [];
     
     // Vérifier le droit d'entrée (prendre le plus récent)
     const entryFeePayments = validPayments.filter(p => p.type === 'droit_entree');
@@ -966,6 +1031,72 @@ ${pdfContent.length}
     };
   }
 
+  // 📊 Contrôle de conformité 80/20
+  async getComplianceOverview(): Promise<any> {
+    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
+    
+    const complianceRecords = await this.complianceRepository.find({
+      where: {
+        periode: new Date(currentYear, currentMonth - 1, 1),
+        typePeriode: 'monthly'
+      },
+      relations: ['franchise']
+    });
+
+    const totalFranchises = complianceRecords.length;
+    const conformes = complianceRecords.filter(r => r.estConforme).length;
+    const nonConformes = totalFranchises - conformes;
+    
+    const totalCA = complianceRecords.reduce((sum, r) => sum + r.chiffreAffairesTotal, 0);
+    const totalAchatsObligatoires = complianceRecords.reduce((sum, r) => sum + r.achatsObligatoires, 0);
+    const totalAchatsLibres = complianceRecords.reduce((sum, r) => sum + r.achatsLibres, 0);
+
+    return {
+      summary: {
+        totalFranchises,
+        conformes,
+        nonConformes,
+        tauxConformite: totalFranchises > 0 ? (conformes / totalFranchises) * 100 : 0
+      },
+      financial: {
+        totalCA,
+        totalAchatsObligatoires,
+        totalAchatsLibres,
+        moyenneConformite: complianceRecords.length > 0 ? 
+          complianceRecords.reduce((sum, r) => sum + r.pourcentageConformite, 0) / complianceRecords.length : 0
+      },
+      details: complianceRecords
+    };
+  }
+
+  // 🔍 Vérifier la conformité d'un franchisé
+  async checkFranchiseCompliance(franchiseId: number): Promise<any> {
+    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
+    
+    const compliance = await this.complianceRepository.findOne({
+      where: {
+        franchise: { id: franchiseId },
+        periode: new Date(currentYear, currentMonth - 1, 1),
+        typePeriode: 'monthly'
+      }
+    });
+
+    if (!compliance) {
+      return {
+        message: 'Aucun enregistrement de conformité trouvé pour ce mois',
+        needsCheck: true
+      };
+    }
+
+    return {
+      ...compliance,
+      message: compliance.estConforme ? 'Franchisé conforme' : 'Franchisé non conforme',
+      needsAction: !compliance.estConforme
+    };
+  }
+
   // 🏢 Gestion des entrepôts
   async getWarehouseInventory(warehouseId: number): Promise<any> {
     const warehouse = await this.warehouseRepository.findOne({
@@ -1020,5 +1151,50 @@ ${pdfContent.length}
       isActive: admin.isActive,
       lastLogin: admin.lastLogin
     }));
+  }
+
+  // 📊 Dashboard et statistiques
+  async getDashboardStats(): Promise<any> {
+    // Récupérer tous les franchisés avec leurs métriques
+    const franchises = await this.getAllFranchisesWithMetrics();
+    
+    // Calculer les statistiques globales
+    const totalFranchises = franchises.length;
+    const operationalFranchises = franchises.filter(f => f.status === 'Opérationnel').length;
+    const pendingPayment = franchises.filter(f => f.status === 'En attente de paiement').length;
+    const pendingTruck = franchises.filter(f => f.status === 'En attente de camion').length;
+    
+    // Calculer le CA total et la croissance mensuelle
+    const totalRevenue = franchises.reduce((sum, f) => sum + f.totalSales, 0);
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    // Calculer la croissance par rapport au mois précédent (simulation)
+    const monthlyGrowth = 12; // Pour l'exemple, à remplacer par un vrai calcul
+    
+    // Récupérer les statistiques des camions
+    const trucks = await this.truckRepository.find();
+    const totalTrucks = trucks.length;
+    const availableTrucks = trucks.filter(t => !t.isAssigned).length;
+    
+    // Calculer le taux de conformité global
+    const compliantFranchises = franchises.filter(f => f.compliance?.compliance80_20).length;
+    const complianceRate = totalFranchises > 0 ? Math.round((compliantFranchises / totalFranchises) * 100) : 0;
+    
+    // Simuler le nombre de produits en rupture (à remplacer par un vrai calcul)
+    const lowStockProducts = 5;
+    
+    return {
+      totalFranchises,
+      operationalFranchises,
+      pendingPayment,
+      pendingTruck,
+      totalRevenue,
+      monthlyGrowth,
+      totalTrucks,
+      availableTrucks,
+      complianceRate,
+      lowStockProducts
+    };
   }
 } 

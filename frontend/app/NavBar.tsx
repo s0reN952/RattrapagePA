@@ -128,9 +128,8 @@ export default function NavBar() {
                 <Link href="/admin" style={{ textDecoration: "none", color: "#2c3e50" }}>Dashboard Admin</Link>
                 <Link href="/admin/franchises" style={{ textDecoration: "none", color: "#2c3e50" }}>Franchisés</Link>
                 <Link href="/admin/trucks" style={{ textDecoration: "none", color: "#2c3e50" }}>Camions</Link>
-                <Link href="/admin/financial" style={{ textDecoration: "none", color: "#2c3e50" }}>Financier</Link>
                 <Link href="/admin/warehouses" style={{ textDecoration: "none", color: "#2c3e50" }}>Entrepôts</Link>
-                <Link href="/admin/reports" style={{ textDecoration: "none", color: "#2c3e50" }}>Rapports</Link>
+                <Link href="/admin/compliance" style={{ textDecoration: "none", color: "#2c3e50" }}>Conformité 80/20</Link>
                 <Link href="/admin/settings" style={{ textDecoration: "none", color: "#2c3e50" }}>Paramètres</Link>
               </>
             ) : (
@@ -142,7 +141,6 @@ export default function NavBar() {
                 <Link href="/sales" style={{ textDecoration: "none", color: "#2c3e50" }}>Ventes</Link>
                 <Link href="/warehouses" style={{ textDecoration: "none", color: "#2c3e50" }}>Entrepôts</Link>
                 <Link href="/franchise-stock" style={{ textDecoration: "none", color: "#2c3e50" }}>Mon Stock</Link>
-                <Link href="/payments" style={{ textDecoration: "none", color: "#2c3e50" }}>Paiements</Link>
                 <Link href="/droit-entree" style={{ textDecoration: "none", color: "#2c3e50" }}>Droit d'entrée</Link>
                 <Link href="/profile" style={{ textDecoration: "none", color: "#2c3e50" }}>Mon profil</Link>
               </>

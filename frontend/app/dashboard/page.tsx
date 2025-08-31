@@ -15,9 +15,20 @@ interface PaymentStatus {
   date?: string;
 }
 
+interface ComplianceStatus {
+  estConforme: boolean;
+  pourcentageAchats: string;
+  chiffreAffairesTotal: number;
+  achatsDrivnCook: number;
+  achatsObligatoires: number;
+  montantRequis: number;
+  periode: string;
+}
+
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
+  const [complianceStatus, setComplianceStatus] = useState<ComplianceStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -72,6 +83,27 @@ export default function DashboardPage() {
       } catch (err) {
         console.log("Erreur lors de la vérification du paiement:", err);
         setPaymentStatus({ paid: false });
+      }
+
+      // Charger le statut de conformité 80/20
+      try {
+        console.log("🔄 Chargement du statut de conformité...");
+        const complianceRes = await fetch("/api/compliance/status", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        console.log("📊 Réponse API conformité:", complianceRes.status, complianceRes.ok);
+
+        if (complianceRes.ok) {
+          const complianceData = await complianceRes.json();
+          console.log("✅ Données de conformité reçues:", complianceData);
+          setComplianceStatus(complianceData.compliance);
+        } else {
+          const errorText = await complianceRes.text();
+          console.log("❌ Erreur API conformité:", complianceRes.status, errorText);
+        }
+      } catch (err) {
+        console.log("❌ Erreur lors de la récupération du statut de conformité:", err);
       }
 
     } catch (err) {
@@ -240,6 +272,91 @@ export default function DashboardPage() {
           <div style={{ fontSize: "0.9rem", color: "#666", marginTop: "0.5rem" }}>
             {isPaid ? "Franchisé actif" : "Paiement requis"}
           </div>
+          
+          {/* Statut de conformité 80/20 */}
+          {isPaid && (
+            <div style={{ 
+              marginTop: "1rem", 
+              padding: "0.75rem", 
+              borderRadius: "6px",
+              backgroundColor: "#f8f9fa",
+              border: "1px solid #dee2e6"
+            }}>
+              <h4 style={{ margin: 0, fontSize: "0.9rem", color: "#495057", marginBottom: "0.5rem" }}>
+                📊 Conformité 80/20
+              </h4>
+              
+              {complianceStatus ? (
+                <>
+                  <div style={{ 
+                    fontSize: "1rem", 
+                    fontWeight: "bold", 
+                    color: complianceStatus.estConforme ? "#155724" : "#721c24",
+                    marginBottom: "0.25rem"
+                  }}>
+                    {complianceStatus.estConforme ? "✅ Conforme 80/20" : "❌ Non-conforme 80/20"}
+                  </div>
+                  <div style={{ 
+                    fontSize: "0.8rem", 
+                    color: complianceStatus.estConforme ? "#155724" : "#721c24"
+                  }}>
+                    Achats: {complianceStatus.pourcentageAchats}% (requis: 80%)
+                  </div>
+                  <div style={{ 
+                    fontSize: "0.7rem", 
+                    color: "#6c757d",
+                    marginTop: "0.25rem"
+                  }}>
+                    CA: {complianceStatus.chiffreAffairesTotal.toLocaleString('fr-FR')}€ | 
+                    Achats: {complianceStatus.achatsDrivnCook.toLocaleString('fr-FR')}€
+                  </div>
+                  {!complianceStatus.estConforme && complianceStatus.montantRequis > 0 && (
+                    <div style={{ 
+                      fontSize: "0.8rem", 
+                      color: "#721c24",
+                      marginTop: "0.25rem",
+                      fontWeight: "bold",
+                      padding: "0.25rem",
+                      backgroundColor: "#f8d7da",
+                      borderRadius: "4px"
+                    }}>
+                      ⚠️ À acheter: {complianceStatus.montantRequis.toLocaleString('fr-FR')}€
+                    </div>
+                  )}
+                  {complianceStatus.estConforme && (
+                    <div style={{ 
+                      fontSize: "0.8rem", 
+                      color: "#155724",
+                      marginTop: "0.25rem",
+                      fontWeight: "bold",
+                      padding: "0.25rem",
+                      backgroundColor: "#d4edda",
+                      borderRadius: "4px"
+                    }}>
+                      🎉 Règle 80/20 respectée !
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div style={{ 
+                    fontSize: "1rem", 
+                    fontWeight: "bold", 
+                    color: "#6c757d",
+                    marginBottom: "0.25rem"
+                  }}>
+                    🔄 Calcul de conformité...
+                  </div>
+                  <div style={{ 
+                    fontSize: "0.8rem", 
+                    color: "#6c757d"
+                  }}>
+                    Vérification en cours...
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
         
         <div className="card">

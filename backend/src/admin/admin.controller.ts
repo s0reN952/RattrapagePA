@@ -1,14 +1,19 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, Res, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, Res, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { ComplianceService } from './compliance.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from './admin.guard';
 import { NotFoundException } from '@nestjs/common';
 import { Response } from 'express';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, AdminGuard)
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly complianceService: ComplianceService
+  ) {}
 
   // 🚛 Gestion des camions
   @Post('trucks')
@@ -108,7 +113,7 @@ export class AdminController {
   // 👥 Gestion des franchisés
   @Get('franchises')
   async getAllFranchises() {
-    return this.adminService.getAllFranchises();
+    return this.adminService.getAllFranchisesWithMetrics();
   }
 
   @Get('franchises/:id')
@@ -153,20 +158,10 @@ export class AdminController {
     return this.adminService.addFranchiseNote(id, noteData);
   }
 
-  @Get('franchises/compliance/overview')
-  async getFranchiseCompliance() {
-    return this.adminService.getFranchiseCompliance();
-  }
-
   // 💰 Suivi financier
   @Get('financial/overview')
   async getFinancialOverview() {
     return this.adminService.getFinancialOverview();
-  }
-
-  @Get('financial/compliance')
-  async getFinancialCompliance() {
-    return this.adminService.getFranchiseCompliance();
   }
 
   // 📈 Rapports et statistiques
@@ -308,6 +303,49 @@ export class AdminController {
     return this.adminService.getAdminUsers();
   }
 
+  // 📊 Récupérer la vue d'ensemble de conformité
+  @Get('compliance/overview')
+  @UseGuards(AuthGuard('jwt'), AdminGuard)
+  async getComplianceOverview(@Query('period') period: 'monthly' | 'quarterly' = 'monthly') {
+    try {
+      const overview = await this.complianceService.getComplianceOverview(period);
+      return overview;
+    } catch (error) {
+      console.error('Erreur lors de la récupération de la vue d\'ensemble de conformité:', error);
+      throw new BadRequestException('Erreur lors de la récupération des données de conformité');
+    }
+  }
+
+  // 🔄 Vérifier la conformité de tous les franchisés
+  @Post('compliance/check-all')
+  @UseGuards(AuthGuard('jwt'), AdminGuard)
+  async checkAllFranchisesCompliance(@Body() data: { month: number; year: number; period: 'monthly' | 'quarterly' }) {
+    try {
+      const results = await this.complianceService.checkAllFranchisesCompliance(data.month, data.year);
+      return { 
+        success: true, 
+        message: `Contrôle de conformité effectué pour ${results.length} franchisés`,
+        results 
+      };
+    } catch (error) {
+      console.error('Erreur lors du contrôle de conformité:', error);
+      throw new BadRequestException('Erreur lors du contrôle de conformité');
+    }
+  }
+
+  // 📊 Générer un rapport de conformité
+  @Get('compliance/report')
+  @UseGuards(AuthGuard('jwt'), AdminGuard)
+  async generateComplianceReport(@Query('period') period: 'monthly' | 'quarterly' = 'monthly') {
+    try {
+      const report = await this.complianceService.generateComplianceReport({ period });
+      return report;
+    } catch (error) {
+      console.error('Erreur lors de la génération du rapport:', error);
+      throw new BadRequestException('Erreur lors de la génération du rapport');
+    }
+  }
+
   // 📊 Dashboard principal
   @Get('dashboard')
   async getDashboard() {
@@ -334,5 +372,11 @@ export class AdminController {
         available: truckFleet.filter(t => !t.isAssigned).length
       }
     };
+  }
+
+  // 📊 Dashboard et statistiques
+  @Get('dashboard/stats')
+  async getDashboardStats() {
+    return this.adminService.getDashboardStats();
   }
 } 

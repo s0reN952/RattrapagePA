@@ -45,6 +45,8 @@ export class SalesService {
       marge_brute: margeBrute,
       taux_marge: tauxMarge,
       panier_moyen: panierMoyen,
+      montant: chiffreAffaires, // Le montant est égal au chiffre d'affaires
+      date: new Date(), // Date actuelle
       user: { id: user.id }
     });
 
