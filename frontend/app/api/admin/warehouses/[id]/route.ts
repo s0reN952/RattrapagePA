@@ -1,16 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
 
 export async function PUT(
-  request: NextRequest,
+  request: any,
   { params }: { params: { id: string } }
-) {
+, ctx: any) {
   try {
     const token = request.headers.get('authorization');
     const body = await request.json();
     
-    const response = await fetch(`${BACKEND_URL}/warehouses/admin/warehouses/${params.id}`, {
+    const response = await fetch(`${BACKEND_URL}/warehouses/admin/warehouses/${ctx?.params?.id}`, {
       method: 'PUT',
       headers: {
         'Authorization': token || '',
@@ -35,13 +35,13 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: NextRequest,
+  request: any,
   { params }: { params: { id: string } }
-) {
+, ctx: any) {
   try {
     const token = request.headers.get('authorization');
     
-    const response = await fetch(`${BACKEND_URL}/warehouses/admin/warehouses/${params.id}`, {
+    const response = await fetch(`${BACKEND_URL}/warehouses/admin/warehouses/${ctx?.params?.id}`, {
       method: 'DELETE',
       headers: {
         'Authorization': token || '',

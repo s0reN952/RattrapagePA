@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 export async function GET(
-  request: NextRequest,
+  request: any,
   { params }: { params: { filename: string } }
-) {
+, ctx: any) {
   try {
     console.log('=== DÉBUT API ROUTE TÉLÉCHARGEMENT ===');
     
@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: 'Token manquant' }, { status: 401 });
     }
 
-    const filename = params.filename;
+    const filename = ctx?.params?.filename;
     console.log('📁 Fichier demandé:', filename);
     console.log('🔑 Token reçu:', token.substring(0, 20) + '...');
     

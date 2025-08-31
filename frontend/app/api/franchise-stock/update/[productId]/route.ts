@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 export async function PUT(
-  request: NextRequest,
+  request: any,
   { params }: { params: { productId: string } }
-) {
+, ctx: any) {
   try {
     // Récupérer le token depuis les headers
     const authHeader = request.headers.get('authorization');
@@ -15,7 +15,7 @@ export async function PUT(
     }
 
     const token = authHeader.substring(7);
-    const productId = parseInt(params.productId);
+    const productId = parseInt(ctx?.params?.productId);
 
     if (isNaN(productId)) {
       return NextResponse.json(

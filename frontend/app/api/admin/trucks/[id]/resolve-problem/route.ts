@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 export async function POST(
-  request: NextRequest,
+  request: any,
   { params }: { params: { id: string } }
-) {
+, ctx: any) {
   try {
-    const truckId = parseInt(params.id);
+    const truckId = parseInt(ctx?.params?.id);
     if (isNaN(truckId)) {
       return NextResponse.json(
         { error: 'ID de camion invalide' },

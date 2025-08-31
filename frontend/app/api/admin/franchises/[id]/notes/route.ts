@@ -1,12 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-// POST - Ajouter une note à un franchisé
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+// POST - Ajouter une note à un franchisé (version simplifiée pour Next.js 15.4.4)
+export async function POST(req: any, ctx: any) {
   try {
-    const franchiseId = parseInt(params.id);
+    const { id } = ctx?.params || {};
+    const franchiseId = parseInt(id);
 
     if (isNaN(franchiseId)) {
       return NextResponse.json(
@@ -15,13 +13,16 @@ export async function POST(
       );
     }
 
-    const body = await request.json();
+    const body = await req.json();
     
-    const response = await fetch(`http://localhost:3001/admin/franchises/${franchiseId}/notes`, {
+    // URL simplifiée pour éviter les problèmes de configuration
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    
+    const response = await fetch(`${apiUrl}/admin/franchises/${franchiseId}/notes`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getTokenFromRequest(request)}`,
+        'Authorization': `Bearer ${getTokenFromRequest(req)}`,
       },
       body: JSON.stringify(body),
     });
@@ -46,7 +47,7 @@ export async function POST(
 }
 
 // Fonction helper pour récupérer le token
-function getTokenFromRequest(request: NextRequest): string {
+function getTokenFromRequest(request: any): string {
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return authHeader.substring(7);

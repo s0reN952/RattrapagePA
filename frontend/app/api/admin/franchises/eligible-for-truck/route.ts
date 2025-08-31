@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // GET - Récupérer les franchisés éligibles pour l'attribution de camions
-export async function GET(request: NextRequest) {
+export async function GET(request: any, ctx: any) {
   try {
     const response = await fetch('http://localhost:3001/admin/franchises/eligible-for-truck', {
       headers: {
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Fonction helper pour récupérer le token
-function getTokenFromRequest(request: NextRequest): string {
+function getTokenFromRequest(request: any): string {
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return authHeader.substring(7);

@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
 
-export async function GET(request: NextRequest) {
+export async function GET(request: any, ctx: any) {
   try {
     const token = request.headers.get('authorization');
     
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: any, ctx: any) {
   try {
     const token = request.headers.get('authorization');
     const body = await request.json();

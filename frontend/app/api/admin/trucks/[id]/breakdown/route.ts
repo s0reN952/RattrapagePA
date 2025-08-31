@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // POST - Signaler une panne de camion
 export async function POST(
-  request: NextRequest,
+  request: any,
   { params }: { params: { id: string } }
-) {
+, ctx: any) {
   try {
-    const truckId = parseInt(params.id);
+    const truckId = parseInt(ctx?.params?.id);
 
     if (isNaN(truckId)) {
       return NextResponse.json(
@@ -46,7 +46,7 @@ export async function POST(
 }
 
 // Fonction helper pour récupérer le token
-function getTokenFromRequest(request: NextRequest): string {
+function getTokenFromRequest(request: any): string {
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return authHeader.substring(7);

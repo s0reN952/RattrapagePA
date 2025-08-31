@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // POST - Attribuer un camion à un franchisé
 export async function POST(
-  request: NextRequest,
+  request: any,
   { params }: { params: { id: string; franchiseId: string } }
-) {
+, ctx: any) {
   try {
-    const truckId = parseInt(params.id);
-    const franchiseId = parseInt(params.franchiseId);
+    const truckId = parseInt(ctx?.params?.id);
+    const franchiseId = parseInt(ctx?.params?.franchiseId);
 
     if (isNaN(truckId) || isNaN(franchiseId)) {
       return NextResponse.json(
@@ -43,7 +43,7 @@ export async function POST(
 }
 
 // Fonction helper pour récupérer le token
-function getTokenFromRequest(request: NextRequest): string {
+function getTokenFromRequest(request: any): string {
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return authHeader.substring(7);

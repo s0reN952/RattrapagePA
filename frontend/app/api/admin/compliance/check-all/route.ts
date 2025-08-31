@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: any, ctx: any) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
     
@@ -8,7 +8,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Token manquant' }, { status: 401 });
     }
 
-    const response = await fetch('http://localhost:3001/admin/compliance/check-all', {
+    // URL simplifiée pour éviter les problèmes de configuration
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    
+    const response = await fetch(`${apiUrl}/admin/compliance/check-all`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,

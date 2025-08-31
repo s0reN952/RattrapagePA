@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET(request: any, ctx: any) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
     if (!token) {

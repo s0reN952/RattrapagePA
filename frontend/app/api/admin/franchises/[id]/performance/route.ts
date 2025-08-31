@@ -1,12 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // GET - Récupérer les performances d'un franchisé
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: any, ctx: any) {
   try {
-    const franchiseId = parseInt(params.id);
+    const { id } = ctx?.params || {};
+    const franchiseId = parseInt(id);
     const period = request.nextUrl.searchParams.get('period') || 'month';
 
     if (isNaN(franchiseId)) {
@@ -16,7 +14,10 @@ export async function GET(
       );
     }
 
-    const response = await fetch(`http://localhost:3001/admin/franchises/${franchiseId}/performance?period=${period}`, {
+    // URL simplifiée pour éviter les problèmes de configuration
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    
+    const response = await fetch(`${apiUrl}/admin/franchises/${franchiseId}/performance?period=${period}`, {
       headers: {
         'Authorization': `Bearer ${getTokenFromRequest(request)}`,
       },
@@ -42,7 +43,7 @@ export async function GET(
 }
 
 // Fonction helper pour récupérer le token
-function getTokenFromRequest(request: NextRequest): string {
+function getTokenFromRequest(request: any): string {
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return authHeader.substring(7);

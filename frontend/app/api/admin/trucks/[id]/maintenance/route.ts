@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // PUT - Mettre à jour le statut de maintenance d'un camion
 export async function PUT(
-  request: NextRequest,
+  request: any,
   { params }: { params: { id: string } }
-) {
+, ctx: any) {
   try {
-    const truckId = parseInt(params.id);
+    const truckId = parseInt(ctx?.params?.id);
     const body = await request.json();
 
     const response = await fetch(`http://localhost:3001/admin/trucks/${truckId}/maintenance`, {
@@ -36,7 +36,7 @@ export async function PUT(
 }
 
 // Fonction helper pour récupérer le token
-function getTokenFromRequest(request: NextRequest): string {
+function getTokenFromRequest(request: any): string {
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return authHeader.substring(7);
